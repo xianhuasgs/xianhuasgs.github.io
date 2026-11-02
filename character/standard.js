@@ -3570,7 +3570,7 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
       direct: true,
       filter(e, p) {
         if (p.storage.my_fengjue_spent) return false;
-        if (e.name === "phase") return !yin(p, "my_fengjue") && e.player !== p && p.countCards("he") > 0;
+        if (e.name === "phase") return !yin(p, "my_fengjue") && p.countCards("he") > 0;
         return yin(p, "my_fengjue") && e.player.hp > 0 && predictedLoss(e) >= e.player.hp;
       },
       async content(event, trigger, player) {
@@ -3582,7 +3582,7 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
           player.storage.my_fengjue_count = (player.storage.my_fengjue_count || 0) + 1;
           player.awakenSkill("my_fengjue");
           await invoke(player, "my_fengjue");
-          await player.give(r.cards, target);
+          if (target !== player) await player.give(r.cards, target);
           await target.damage(r.cards.length, player);
           if (alive(target)) {
             const x = Math.max(0, target.maxHp - target.hp);
@@ -3865,11 +3865,11 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
       my_zhongzhi: "终志",
       my_xiangran: "想然",
       my_gaoyi: "高议",
-      my_fengjue_info: "限定技，转换技。阳：其他角色的回合开始时，你可交给其任意张（至少一张）手牌或装备牌，对其造成等量伤害，然后按其已损失体力固定X，其下次造成伤害+X，下次从牌堆获得牌+X。阴：伤害即将令一名角色濒死时，你可防止之，令其获得场上X张牌（装备区、判定区，不足全得，X为奉绝累计发动次数），将其移出游戏，直到伤害来源回合开始；若至下一轮结束仍未返回，其死亡。每次发动后转换。",
+      my_fengjue_info: "限定技，转换技。阳：一名角色的回合开始时，你可交给其任意张（至少一张）手牌或装备牌，对其造成等量伤害，然后按其已损失体力固定X，其下次造成伤害+X，下次从牌堆获得牌+X。阴：伤害即将令一名角色濒死时，你可防止之，令其获得场上X张牌（装备区、判定区，不足全得，X为奉绝累计发动次数），将其移出游戏，直到伤害来源回合开始；若至下一轮结束仍未返回，其死亡。每次发动后转换。",
       my_weijing_info: "锁定技，一名角色濒死结算后，重置奉绝的限定次数（不重置阴阳状态及累计发动次数）。",
       my_fumeng_info: "锁定技，转换技，初始为阳。一名角色脱离濒死后转换。阳：普通锦囊牌额外结算一次。阴：所有伤害改为失去等量体力。",
       my_yifang_info: "当你成为其他角色的锦囊牌目标时，你可将一张手牌或装备牌当你本轮未使用过的锦囊牌使用（含延时锦囊）。受到伤害后，令一名其他角色回复1点体力。",
-      my_jingshi_info: "转换技，初始为阳，每次发动后转换。阳：准备阶段或受到伤害后，你可令一名角色摸X张牌（X为其体力上限，至多5）。阴：一名角色回合结束时，你可令其弃置本回合获得数量的手牌或装备牌，不足则全弃。",
+      my_jingshi_info: "转换技，初始为阳，每次发动后转换。阳：准备阶段或受到伤害后，你可令一名角色摸X张牌（X为其体力上限，至多5）。阴：一名角色回合结束时，其弃置本回合获得数量的手牌或装备牌，不足则全弃。",
       my_zhongzhi_info: "锁定技，每个角色回合内，弃牌堆首次同时包含基本、锦囊、装备三类牌时，你依次执行：①受到1点无来源伤害；②转换自己的一个转换技状态。若因此进入濒死并脱离，今后颠倒两项顺序（再次满足则再次颠倒）。",
       my_xiangran_info: "转换技，初始为阴，每次发动后转换。阴：一名角色回合结束时，你可声明其本回合未使用过的一种普通锦囊及合法目标，视为其使用之。阳：一名角色在其回合内首次使用锦囊时，你可令此牌无效。",
       my_gaoyi_info: "锁定技，其他角色发动一个技能后，若这不是该角色本轮首次发动该技能，你摸一张牌。"
