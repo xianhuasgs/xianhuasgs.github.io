@@ -27,7 +27,7 @@ jobs:
             git fetch --depth=1 origin game-assets
             git archive FETCH_HEAD | tar -x -C "$SITE_DIR"
           else
-            python3 download_snapshot.py "$SITE_DIR"
+            python3 unpack_snapshot.py "$SITE_DIR"
             git checkout --orphan game-assets
             git rm -rf .
             cp -a "$SITE_DIR/." .
@@ -44,3 +44,4 @@ jobs:
       - name: Publish GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
