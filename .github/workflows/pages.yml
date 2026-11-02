@@ -1,0 +1,46 @@
+name: Publish DIY Sanguosha
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare independent game snapshot
+        env:
+          SITE_DIR: ${{ runner.temp }}/sgs-site
+        run: |
+          mkdir -p "$SITE_DIR"
+          if git ls-remote --exit-code --heads origin game-assets >/dev/null 2>&1; then
+            git fetch --depth=1 origin game-assets
+            git archive FETCH_HEAD | tar -x -C "$SITE_DIR"
+          else
+            python3 download_snapshot.py "$SITE_DIR"
+            git checkout --orphan game-assets
+            git rm -rf .
+            cp -a "$SITE_DIR/." .
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add --all
+            git commit -m 'Store verified independent game snapshot'
+            git push origin HEAD:game-assets
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/sgs-site
+      - name: Publish GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
