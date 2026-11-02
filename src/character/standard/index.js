@@ -13,29 +13,32 @@ import voices from "./voices.js";
 import { characterSort, characterSortTranslate } from "./sort.js";
 import { createJinSimayiPack } from "./jin_simayi.js";
 import { createMoZhangjiaoPack } from "./mo_zhangjiao.js";
+import { createJianSeriesPack } from "./jian_series.js";
 const jinSimayi = createJinSimayiPack({ lib, game, ui, get, _status });
 const moZhangjiao = createMoZhangjiaoPack({ lib, game, ui, get, _status });
+const jianSeries = createJianSeriesPack({ lib, game, ui, get, _status });
 
 game.import("character", function () {
 	return {
 		name: "standard",
 		connect: true,
-		character: { ...characters, ...jinSimayi.character, ...moZhangjiao.character },
+		character: { ...characters, ...jinSimayi.character, ...moZhangjiao.character, ...jianSeries.character },
 		characterSort: {
-			standard: { ...characterSort, my_jin_custom: ["my_jin_simayi"], my_mo_custom: ["my_mo_zhangjiao"] },
+			standard: { ...characterSort, my_jin_custom: ["my_jin_simayi"], my_mo_custom: ["my_mo_zhangjiao"], my_jian_custom: Object.keys(jianSeries.character) },
 		},
 		characterFilter: {
 			...characterFilters,
+			...Object.fromEntries(Object.keys(jianSeries.character).map(name => [name, mode => mode === "identity" && !_status.connectMode])),
 			my_jin_simayi: mode => mode === "identity" && !_status.connectMode,
 			my_mo_zhangjiao: mode => mode === "identity" && !_status.connectMode,
 		},
-		characterTitle: { ...characterTitles },
+		characterTitle: { ...characterTitles, ...jianSeries.characterTitle },
 		dynamicTranslate: { ...dynamicTranslates },
 		characterIntro: { ...characterIntros },
 		card: { ...cards },
-		skill: { ...skills, ...jinSimayi.skill, ...moZhangjiao.skill },
+		skill: { ...skills, ...jinSimayi.skill, ...moZhangjiao.skill, ...jianSeries.skill },
 		perfectPair: { ...perfectPairs },
-		translate: { ...translates, ...voices, ...characterSortTranslate, ...jinSimayi.translate, ...moZhangjiao.translate },
+		translate: { ...translates, ...voices, ...characterSortTranslate, ...jinSimayi.translate, ...moZhangjiao.translate, ...jianSeries.translate },
 		pinyins: { ...pinyins },
 	};
 });
