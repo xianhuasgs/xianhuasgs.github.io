@@ -99,7 +99,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 				if (!(p.storage.my_fengjue_cards > 0)) return false;
 				return e.name === "draw" || e.cards.some(c => !get.owner(c) && (get.position(c) === "c" || c.original === "c"));
 			},
-			content(event, trigger, player) {
+			async content(event, trigger, player) {
 				if (trigger.name === "damage") {
 					trigger.num += player.storage.my_fengjue_damage;
 					delete player.storage.my_fengjue_damage;
@@ -136,7 +136,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 			filter(e, p) {
 				return !!p.storage.my_fengjue_spent;
 			},
-			content(event, trigger, player) {
+			async content(event, trigger, player) {
 				delete player.storage.my_fengjue_spent;
 				player.restoreSkill("my_fengjue");
 			},
@@ -248,7 +248,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 			filter(e, p) {
 				return p.storage.my_zhongzhi_resolving && alive(p) && p.hp > 0;
 			},
-			content(event, trigger, player) {
+			async content(event, trigger, player) {
 				player.storage.my_zhongzhi_reverse = !player.storage.my_zhongzhi_reverse;
 			},
 		},

@@ -86,7 +86,7 @@ export function createSecondBatch(runtime) {
 			trigger: { global: "phaseAfter" },
 			forced: true,
 			silent: true,
-			content(event, trigger) {
+			async content(event, trigger) {
 				watched.delete(trigger);
 			},
 		},
@@ -100,7 +100,7 @@ export function createSecondBatch(runtime) {
 				if (e.name === "useCard") return ["sha", "jiu"].includes(get.name(e.card));
 				return ["tao", "jiu"].some(n => e.getParent(n)?.name === n);
 			},
-			content(event, trigger) {
+			async content(event, trigger) {
 				if (trigger.name === "useCard") trigger.baseDamage = (trigger.baseDamage ?? 1) + 1;
 				else trigger.num++;
 			},
@@ -141,7 +141,7 @@ export function createSecondBatch(runtime) {
 			forced: true,
 			silent: true,
 			priority: 1000,
-			content(event, trigger) {
+			async content(event, trigger) {
 				snapshots.set(trigger.player, { cards: trigger.player.countCards("h"), hp: trigger.player.hp });
 			},
 		},
@@ -153,7 +153,7 @@ export function createSecondBatch(runtime) {
 			filter(e, p) {
 				return !!p.storage.my_fushi_check;
 			},
-			content(event, trigger, player) {
+			async content(event, trigger, player) {
 				const record = player.storage.my_fushi_check;
 				delete player.storage.my_fushi_check;
 				if (record.count === live().length) {

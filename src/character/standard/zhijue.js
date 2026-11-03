@@ -184,7 +184,7 @@ export function createZhijuePack({ lib, game, ui, get, _status }) {
 				filter(e, p) {
 					return p === game.filterPlayer()[0] && (e.name !== "damage" || active("伤害来源"));
 				},
-				content(event, trigger) {
+				async content(event, trigger) {
 					if (trigger.name === "damage") {
 						trigger.my_zhijue_source = trigger.source;
 						delete trigger.source;
@@ -211,7 +211,7 @@ export function createZhijuePack({ lib, game, ui, get, _status }) {
 				filter(e, p) {
 					return p === game.filterPlayer()[0] && active("伤害来源") && e.my_zhijue_source === _status.currentPhase;
 				},
-				content(event, trigger) {
+				async content(event, trigger) {
 					const actor = trigger.my_zhijue_source,
 						source = trigger.source;
 					suspended++;
@@ -278,7 +278,7 @@ export function createZhijuePack({ lib, game, ui, get, _status }) {
 				trigger: { global: "phaseAfter" },
 				forced: true,
 				silent: true,
-				content(event, trigger) {
+				async content(event, trigger) {
 					missed.delete(trigger);
 					discards.delete(trigger);
 				},
