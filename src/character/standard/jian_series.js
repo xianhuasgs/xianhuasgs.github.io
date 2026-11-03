@@ -1,4 +1,4 @@
-// 本地 DIY 扩展：仅启用于单机身份模式。
+// 本地 DIY 扩展：开放单机模式；联机同步尚未实现。
 export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 	const alive = p => p?.isIn();
 	const yin = (p, s) => !!p.storage[s];

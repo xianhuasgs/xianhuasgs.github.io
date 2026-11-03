@@ -15,10 +15,12 @@ import { createJinSimayiPack } from "./jin_simayi.js";
 import { createMoZhangjiaoPack } from "./mo_zhangjiao.js";
 import { createJianSeriesPack } from "./jian_series.js";
 import { createTianJianSeriesPack } from "./tian_jian_series.js";
+import { configureDiyModes } from "./diy_modes.js";
 const jinSimayi = createJinSimayiPack({ lib, game, ui, get, _status });
 const moZhangjiao = createMoZhangjiaoPack({ lib, game, ui, get, _status });
 const jianSeries = createJianSeriesPack({ lib, game, ui, get, _status });
 const tianJian = createTianJianSeriesPack({ lib, game, ui, get, _status });
+const diyFilters = configureDiyModes({ lib, _status, characters: { ...jinSimayi.character, ...moZhangjiao.character, ...jianSeries.character, ...tianJian.character } });
 
 game.import("character", function () {
 	return {
@@ -30,10 +32,7 @@ game.import("character", function () {
 		},
 		characterFilter: {
 			...characterFilters,
-			...Object.fromEntries(Object.keys(jianSeries.character).map(name => [name, mode => mode === "identity" && !_status.connectMode])),
-			...Object.fromEntries(Object.keys(tianJian.character).map(name => [name, mode => mode === "identity" && !_status.connectMode])),
-			my_jin_simayi: mode => mode === "identity" && !_status.connectMode,
-			my_mo_zhangjiao: mode => mode === "identity" && !_status.connectMode,
+			...diyFilters,
 		},
 		characterTitle: { ...characterTitles, ...jianSeries.characterTitle, ...tianJian.characterTitle },
 		dynamicTranslate: { ...dynamicTranslates },

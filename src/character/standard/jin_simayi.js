@@ -30,7 +30,7 @@ export function createJinSimayiPack({ lib, game, ui, get, _status }) {
 	}
 	const skills = {
 		my_cangyuan: {
-			trigger: { global: "gameStart" },
+			trigger: { global: "gameStart", player: "enterGame" },
 			forced: true,
 			filter(event, player) {
 				return !player.storage.my_cangyuan_created && !_status.connectMode;
@@ -40,7 +40,8 @@ export function createJinSimayiPack({ lib, game, ui, get, _status }) {
 				const token = await game.addPlayerOL(player, "my_yinni", null, true, { source: player, animate: false });
 				token.storage.jinsimayi_owner = player.playerid;
 				token._trueMe = player;
-				token.identity = player.identity === "zhu" ? "zhong" : player.identity;
+				token.identity = (get.mode?.() || "identity") === "identity" && player.identity === "zhu" ? "zhong" : player.identity;
+				if (player.side !== undefined) token.side = player.side;
 				token.identityShown = player.identityShown;
 				token.ai.shown = player.ai.shown;
 				token.setIdentity();
