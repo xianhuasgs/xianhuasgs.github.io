@@ -295,6 +295,18 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 				await actor.useCard(card, targets, false);
 			},
 		},
+		my_bingjie: {
+			trigger: { player: "loseAfter", global: ["equipAfter", "addJudgeAfter", "gainAfter", "loseAsyncAfter", "addToExpansionAfter"] },
+			forced: true,
+			filter(event, player) {
+				if (player.countCards("h") || !player.isDamaged()) return false;
+				const loss = event.getl?.(player);
+				return !!(loss && loss.player === player && loss.hs?.length);
+			},
+			async content(event, trigger, player) {
+				await player.recover();
+			},
+		},
 		my_gaoyi: {
 			trigger: { global: ["logSkill", "useSkillAfter"] },
 			forced: true,
@@ -320,7 +332,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 		character: {
 			my_jian_guojia: { sex: "male", group: "wei", hp: 3, maxHp: 4, skills: ["my_fengjue", "my_weijing"], img: "image/character/guojia.jpg" },
 			my_jian_liuxie: { sex: "male", group: "wei", hp: 4, maxHp: 4, skills: ["my_fumeng", "my_yifang"], img: "image/character/liuxie.jpg" },
-			my_jian_xunyu: { sex: "male", group: "wei", hp: 3, maxHp: 3, skills: ["my_jingshi", "my_zhongzhi"], img: "image/character/xunyu.jpg" },
+			my_jian_xunyu: { sex: "male", group: "wei", hp: 3, maxHp: 3, skills: ["my_jingshi", "my_zhongzhi", "my_bingjie"], img: "image/character/xunyu.jpg" },
 			my_jian_kongrong: { sex: "male", group: "qun", hp: 4, maxHp: 4, skills: ["my_xiangran", "my_gaoyi"], img: "image/character/kongrong.jpg" },
 		},
 		characterTitle: { my_jian_guojia: "知孤者，嘉也", my_jian_liuxie: "汉祚余梦", my_jian_xunyu: "魏阙孤臣", my_jian_kongrong: "想当然耳" },
@@ -338,6 +350,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 			my_yifang_heal: "遗方",
 			my_jingshi: "经世",
 			my_zhongzhi: "终志",
+			my_bingjie: "秉节",
 			my_xiangran: "想然",
 			my_gaoyi: "高议",
 			my_fengjue_info: "限定技，转换技。阳：一名角色的回合开始时，你可交给其任意张（至少一张）手牌或装备牌，对其造成等量伤害，然后按其已损失体力固定X，其下次造成伤害+X，下次从牌堆获得牌+X。阴：伤害即将令一名角色濒死时，你可防止之，令其获得场上X张牌（装备区、判定区，不足全得，X为奉绝累计发动次数），将其移出游戏，直到伤害来源回合开始；若至下一轮结束仍未返回，其死亡。每次发动后转换。",
@@ -348,6 +361,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 			my_zhongzhi_info: "锁定技，每个角色回合内，弃牌堆首次同时包含基本、锦囊、装备三类牌时，你依次执行：①受到1点无来源伤害；②转换自己的一个转换技状态。若因此进入濒死并脱离，今后颠倒两项顺序（再次满足则再次颠倒）。",
 			my_xiangran_info: "转换技，初始为阴，每次发动后转换。阴：一名角色回合结束时，你可声明其本回合未使用过的一种普通锦囊及合法目标，视为其使用之。阳：一名角色在其回合内首次使用锦囊时，你可令此牌无效。",
 			my_gaoyi_info: "锁定技，其他角色发动一个技能后，若这不是该角色本轮首次发动该技能，你摸一张牌。",
+			my_bingjie_info: "锁定技，当你失去最后的手牌后，你回复1点体力。",
 		},
 	};
 }
