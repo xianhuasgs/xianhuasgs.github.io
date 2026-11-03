@@ -3785,8 +3785,9 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
       trigger: { global: ["phaseEnd", "useCard1"] },
       direct: true,
       filter(e, p) {
+        if (e.player === p) return false;
         if (yin(p, "my_xiangran")) return e.name === "phase" && alive(e.player);
-        return e.name === "useCard" && tricks(e.card) && _status2.currentPhase === e.player && e.player.getHistory("useCard", (x) => tricks(x.card))[0] === e;
+        return e.name === "useCard" && ordinary(e.card) && game2.getRoundHistory("useCard", null, e).some((previous) => previous !== e && ordinary(previous.card) && get2.name(previous.card) === get2.name(e.card));
       },
       async content(event, trigger, player) {
         if (!yin(player, "my_xiangran")) {
@@ -3797,10 +3798,10 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
           return;
         }
         const actor = trigger.player;
-        const used = actor.getHistory("useCard").map((e) => get2.name(e.card));
+        const used = game2.getRoundHistory("useCard").map((e) => get2.name(e.card));
         const names = lib2.inpile.filter((n) => ordinary({ name: n }) && !used.includes(n) && actor.hasUseTarget({ name: n, isCard: true }));
         if (!names.length) return;
-        const r = await choose(player.chooseButton(["想然：声明本回合未使用的普通锦囊", [names.map((n) => ["锦囊", "", n]), "vcard"]]));
+        const r = await choose(player.chooseButton(["想然：声明本轮全场未使用过的普通锦囊", [names.map((n) => ["锦囊", "", n]), "vcard"]]));
         if (!r.bool) return;
         const card = { name: r.links[0][2], isCard: true }, info = get2.info(card);
         let targets;
@@ -3884,7 +3885,7 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
       my_yifang_info: "当你成为其他角色的锦囊牌目标时，你可将一张手牌或装备牌当你本轮未使用过的锦囊牌使用（含延时锦囊）。受到伤害后，令一名其他角色回复1点体力。",
       my_jingshi_info: "转换技，初始为阳，每次发动后转换。阳：准备阶段或受到伤害后，你可令一名角色摸X张牌（X为其体力上限，至多5）。阴：一名角色回合结束时，其弃置本回合获得数量的手牌或装备牌，不足则全弃。",
       my_zhongzhi_info: "锁定技，每个角色回合内，弃牌堆首次同时包含基本、锦囊、装备三类牌时，你依次执行：①受到1点无来源伤害；②转换自己的一个转换技状态。若因此进入濒死并脱离，今后颠倒两项顺序（再次满足则再次颠倒）。",
-      my_xiangran_info: "转换技，初始为阴，每次发动后转换。阴：一名角色回合结束时，你可声明其本回合未使用过的一种普通锦囊及合法目标，视为其使用之。阳：一名角色在其回合内首次使用锦囊时，你可令此牌无效。",
+      my_xiangran_info: "转换技，初始为阴，每次发动后转换。阴：其他角色回合结束时，你可以声明一种本轮全场未使用过的普通锦囊牌及合法目标，令其使用之。阳：其他角色使用普通锦囊牌时，若本轮此前已有同名牌被使用过，你可以令此牌无效。",
       my_gaoyi_info: "锁定技，其他角色发动一个技能后，若这不是该角色本轮首次发动该技能，你摸一张牌。",
       my_bingjie_info: "锁定技，当你失去最后的手牌后，你回复1点体力。"
     }
