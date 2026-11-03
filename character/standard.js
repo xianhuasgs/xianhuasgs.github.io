@@ -3628,7 +3628,7 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
         if (!(p.storage.my_fengjue_cards > 0)) return false;
         return e.name === "draw" || e.cards.some((c) => !get2.owner(c) && (get2.position(c) === "c" || c.original === "c"));
       },
-      content(event, trigger, player) {
+      async content(event, trigger, player) {
         if (trigger.name === "damage") {
           trigger.num += player.storage.my_fengjue_damage;
           delete player.storage.my_fengjue_damage;
@@ -3665,7 +3665,7 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
       filter(e, p) {
         return !!p.storage.my_fengjue_spent;
       },
-      content(event, trigger, player) {
+      async content(event, trigger, player) {
         delete player.storage.my_fengjue_spent;
         player.restoreSkill("my_fengjue");
       }
@@ -3777,7 +3777,7 @@ function createJianSeriesPack({ lib: lib2, game: game2, ui: ui2, get: get2, _sta
       filter(e, p) {
         return p.storage.my_zhongzhi_resolving && alive(p) && p.hp > 0;
       },
-      content(event, trigger, player) {
+      async content(event, trigger, player) {
         player.storage.my_zhongzhi_reverse = !player.storage.my_zhongzhi_reverse;
       }
     },
@@ -4067,7 +4067,7 @@ function createZhijuePack({ lib: lib2, game: game2, ui: ui2, get: get2, _status:
         filter(e, p) {
           return p === game2.filterPlayer()[0] && (e.name !== "damage" || active("伤害来源"));
         },
-        content(event, trigger) {
+        async content(event, trigger) {
           if (trigger.name === "damage") {
             trigger.my_zhijue_source = trigger.source;
             delete trigger.source;
@@ -4094,7 +4094,7 @@ function createZhijuePack({ lib: lib2, game: game2, ui: ui2, get: get2, _status:
         filter(e, p) {
           return p === game2.filterPlayer()[0] && active("伤害来源") && e.my_zhijue_source === _status2.currentPhase;
         },
-        content(event, trigger) {
+        async content(event, trigger) {
           const actor = trigger.my_zhijue_source, source = trigger.source;
           suspended++;
           try {
@@ -4159,7 +4159,7 @@ function createZhijuePack({ lib: lib2, game: game2, ui: ui2, get: get2, _status:
         trigger: { global: "phaseAfter" },
         forced: true,
         silent: true,
-        content(event, trigger) {
+        async content(event, trigger) {
           missed.delete(trigger);
           discards.delete(trigger);
         }
@@ -4255,7 +4255,7 @@ function createSecondBatch(runtime) {
       trigger: { global: "phaseAfter" },
       forced: true,
       silent: true,
-      content(event, trigger) {
+      async content(event, trigger) {
         watched.delete(trigger);
       }
     },
@@ -4269,7 +4269,7 @@ function createSecondBatch(runtime) {
         if (e.name === "useCard") return ["sha", "jiu"].includes(get2.name(e.card));
         return ["tao", "jiu"].some((n) => e.getParent(n)?.name === n);
       },
-      content(event, trigger) {
+      async content(event, trigger) {
         if (trigger.name === "useCard") trigger.baseDamage = (trigger.baseDamage ?? 1) + 1;
         else trigger.num++;
       }
@@ -4309,7 +4309,7 @@ function createSecondBatch(runtime) {
       forced: true,
       silent: true,
       priority: 1e3,
-      content(event, trigger) {
+      async content(event, trigger) {
         snapshots.set(trigger.player, { cards: trigger.player.countCards("h"), hp: trigger.player.hp });
       }
     },
@@ -4321,7 +4321,7 @@ function createSecondBatch(runtime) {
       filter(e, p) {
         return !!p.storage.my_fushi_check;
       },
-      content(event, trigger, player) {
+      async content(event, trigger, player) {
         const record = player.storage.my_fushi_check;
         delete player.storage.my_fushi_check;
         if (record.count === live().length) {
