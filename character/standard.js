@@ -3033,7 +3033,7 @@ function createJinSimayiPack({ lib: lib2, game: game2, ui: ui2, get: get2, _stat
   }
   const skills2 = {
     my_cangyuan: {
-      trigger: { global: "gameStart" },
+      trigger: { global: "gameStart", player: "enterGame" },
       forced: true,
       filter(event, player) {
         return !player.storage.my_cangyuan_created && !_status2.connectMode;
@@ -3043,7 +3043,8 @@ function createJinSimayiPack({ lib: lib2, game: game2, ui: ui2, get: get2, _stat
         const token = await game2.addPlayerOL(player, "my_yinni", null, true, { source: player, animate: false });
         token.storage.jinsimayi_owner = player.playerid;
         token._trueMe = player;
-        token.identity = player.identity === "zhu" ? "zhong" : player.identity;
+        token.identity = (get2.mode?.() || "identity") === "identity" && player.identity === "zhu" ? "zhong" : player.identity;
+        if (player.side !== void 0) token.side = player.side;
         token.identityShown = player.identityShown;
         token.ai.shown = player.ai.shown;
         token.setIdentity();
@@ -4578,10 +4579,30 @@ function createTianJianSeriesPack(runtime) {
     }
   };
 }
+function configureDiyModes({ lib: lib2, _status: _status2, characters: characters2 }) {
+  const names = Object.keys(characters2).filter((name) => !characters2[name].isUnseen);
+  const filters = Object.fromEntries(names.map((name) => [name, (mode) => mode !== "connect" && !_status2.connectMode]));
+  lib2.arenaReady.push(() => {
+    if (_status2.connectMode || lib2.config.mode === "connect") return;
+    const modeConfig = lib2.config.mode_config;
+    const current = modeConfig[lib2.config.mode] ||= {};
+    current.free_choose = true;
+    if (lib2.config.mode === "guozhan") current.onlyguozhan = false;
+    if (lib2.characterSingle) for (const name of names) lib2.characterSingle[name] = lib2.character[name] || characters2[name];
+    if (lib2.config.mode === "single") current.enable_jin = true;
+    for (const list of [lib2.changbanCharacter, lib2.choiceThree, lib2.choiceFour, modeConfig.versus?.character_three, modeConfig.versus?.character_four]) {
+      if (Array.isArray(list)) {
+        for (const name of names) if (!list.includes(name)) list.push(name);
+      }
+    }
+  });
+  return filters;
+}
 const jinSimayi = createJinSimayiPack({ lib, game, ui, get, _status });
 const moZhangjiao = createMoZhangjiaoPack({ lib, game, ui, get, _status });
 const jianSeries = createJianSeriesPack({ lib, game, ui, get, _status });
 const tianJian = createTianJianSeriesPack({ lib, game, ui, get, _status });
+const diyFilters = configureDiyModes({ lib, _status, characters: { ...jinSimayi.character, ...moZhangjiao.character, ...jianSeries.character, ...tianJian.character } });
 game.import("character", function() {
   return {
     name: "standard",
@@ -4592,10 +4613,7 @@ game.import("character", function() {
     },
     characterFilter: {
       ...characterFilters,
-      ...Object.fromEntries(Object.keys(jianSeries.character).map((name) => [name, (mode) => mode === "identity" && !_status.connectMode])),
-      ...Object.fromEntries(Object.keys(tianJian.character).map((name) => [name, (mode) => mode === "identity" && !_status.connectMode])),
-      my_jin_simayi: (mode) => mode === "identity" && !_status.connectMode,
-      my_mo_zhangjiao: (mode) => mode === "identity" && !_status.connectMode
+      ...diyFilters
     },
     characterTitle: { ...characterTitles, ...jianSeries.characterTitle, ...tianJian.characterTitle },
     dynamicTranslate: { ...dynamicTranslates },
