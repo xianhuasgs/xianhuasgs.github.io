@@ -90,6 +90,10 @@ export function createZhijuePack({ lib, game, ui, get, _status }) {
 		if (!info || info.charlotte || info.silent || !owner.isIn()) return false;
 		if ((info.limited || info.juexingji || info.dutySkill) && owner.awakenedSkills?.includes(s)) return false;
 		const record = originalContext(context);
+		const stat = owner.getStat?.(record && info.trigger ? "triggerSkill" : "skill") || {};
+		const usable = typeof info.usable === "function" ? info.usable(s, owner) : info.usable;
+		if (typeof usable === "number" && (stat[s] || 0) >= usable) return false;
+		if (info.round && game.roundNumber - (owner.storage[s + "_roundcount"] ?? -Infinity) < info.round) return false;
 		if (record && info.trigger && info.content) {
 			const e = adapted(record, owner, actor);
 			try {
@@ -113,7 +117,9 @@ export function createZhijuePack({ lib, game, ui, get, _status }) {
 		await owner.addAdditionalSkills("my_skill_repeat", s);
 		try {
 			if (record && info.trigger) {
-				const next = game.createTrigger(record.name, s, owner, adapted(record, owner, actor));
+				const trigger = adapted(record, owner, actor);
+				if (!lib.filter.filterTrigger(trigger, owner, record.name, s)) return false;
+				const next = game.createTrigger(record.name, s, owner, trigger);
 				next.uncheckHasSkill = true;
 				await next;
 			} else {

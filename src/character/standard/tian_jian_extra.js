@@ -324,8 +324,9 @@ export function createSecondBatch(runtime) {
 				const can = zhijue.canRepeat(player, copySkill, context, actor);
 				const options = can ? ["令曹操发动此技能", "失去此技能"] : ["失去此技能"];
 				const r = await q(actor.chooseControl(options).set("prompt", `挟令：${get.translation(s)}本回合再次发动`));
-				if (can && r.control === options[0]) await zhijue.repeat(player, copySkill, context, actor);
-				else await actor.removeSkills(s);
+				if (can && r.control === options[0]) {
+					if (!(await zhijue.repeat(player, copySkill, context, actor))) await actor.removeSkills(s);
+				} else await actor.removeSkills(s);
 			},
 		},
 	};
