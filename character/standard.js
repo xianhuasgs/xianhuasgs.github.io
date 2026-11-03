@@ -3961,6 +3961,10 @@ function createZhijuePack({ lib: lib2, game: game2, ui: ui2, get: get2, _status:
     if (!info || info.charlotte || info.silent || !owner.isIn()) return false;
     if ((info.limited || info.juexingji || info.dutySkill) && owner.awakenedSkills?.includes(s)) return false;
     const record = originalContext(context);
+    const stat = owner.getStat?.(record && info.trigger ? "triggerSkill" : "skill") || {};
+    const usable = typeof info.usable === "function" ? info.usable(s, owner) : info.usable;
+    if (typeof usable === "number" && (stat[s] || 0) >= usable) return false;
+    if (info.round && game2.roundNumber - (owner.storage[s + "_roundcount"] ?? -Infinity) < info.round) return false;
     if (record && info.trigger && info.content) {
       const e = adapted(record, owner, actor);
       try {
@@ -3982,7 +3986,9 @@ function createZhijuePack({ lib: lib2, game: game2, ui: ui2, get: get2, _status:
     await owner.addAdditionalSkills("my_skill_repeat", s);
     try {
       if (record && info.trigger) {
-        const next = game2.createTrigger(record.name, s, owner, adapted(record, owner, actor));
+        const trigger = adapted(record, owner, actor);
+        if (!lib2.filter.filterTrigger(trigger, owner, record.name, s)) return false;
+        const next = game2.createTrigger(record.name, s, owner, trigger);
         next.uncheckHasSkill = true;
         await next;
       } else {
@@ -4465,8 +4471,9 @@ function createSecondBatch(runtime) {
         const can = zhijue.canRepeat(player, copySkill, context, actor);
         const options = can ? ["令曹操发动此技能", "失去此技能"] : ["失去此技能"];
         const r = await q(actor.chooseControl(options).set("prompt", `挟令：${get2.translation(s)}本回合再次发动`));
-        if (can && r.control === options[0]) await zhijue.repeat(player, copySkill, context, actor);
-        else await actor.removeSkills(s);
+        if (can && r.control === options[0]) {
+          if (!await zhijue.repeat(player, copySkill, context, actor)) await actor.removeSkills(s);
+        } else await actor.removeSkills(s);
       }
     }
   };
