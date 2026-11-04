@@ -1,5 +1,9 @@
 // 本地 DIY 扩展：开放单机模式；联机同步尚未实现。
+import { createDingFurenPack } from "./ding_furen.js";
+
 export function createJianSeriesPack({ lib, game, ui, get, _status }) {
+	const dingFuren = createDingFurenPack({ game, get, lib });
+	const enteredDying = new WeakMap();
 	const alive = p => p?.isIn();
 	const yin = (p, s) => !!p.storage[s];
 	const change = (p, s) => p.changeZhuanhuanji(s);
@@ -28,11 +32,18 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 		p.logSkill(skill);
 		change(p, skill);
 	}
+	function spendFengjue(p) {
+		const state = yin(p, "my_fengjue");
+		// 引擎把限定技的用尽标记也写入storage[skill]，不可覆盖转换状态。
+		p.awakenSkill("my_fengjue", true);
+		p.storage.my_fengjue = state;
+	}
 	function predictedLoss(e) {
 		const armor = e.nohujia || e.player.hasSkillTag("nohujia") ? 0 : e.player.hujia || 0;
 		return Math.max(0, e.num - armor);
 	}
 	const skill = {
+		...dingFuren.skill,
 		my_fengjue: {
 			...conversion("my_fengjue"),
 			limited: true,
@@ -52,7 +63,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 					if (!r.bool) return;
 					player.storage.my_fengjue_spent = true;
 					player.storage.my_fengjue_count = (player.storage.my_fengjue_count || 0) + 1;
-					player.awakenSkill("my_fengjue");
+					spendFengjue(player);
 					await invoke(player, "my_fengjue");
 					if (target !== player) await player.give(r.cards, target);
 					await target.damage(r.cards.length, player);
@@ -66,7 +77,7 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 					if (!(await choose(player.chooseBool(`奉绝：防止${get.translation(target)}此次伤害并将其移出游戏？`))).bool) return;
 					player.storage.my_fengjue_spent = true;
 					const x = (player.storage.my_fengjue_count = (player.storage.my_fengjue_count || 0) + 1);
-					player.awakenSkill("my_fengjue");
+					spendFengjue(player);
 					await invoke(player, "my_fengjue");
 					trigger.cancel();
 					const cards = fieldCards();
@@ -137,26 +148,51 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 				return !!p.storage.my_fengjue_spent;
 			},
 			async content(event, trigger, player) {
+				const state = yin(player, "my_fengjue");
 				delete player.storage.my_fengjue_spent;
-				player.restoreSkill("my_fengjue");
+				player.restoreSkill("my_fengjue", true);
+				player.storage.my_fengjue = state;
+				player.markSkill("my_fengjue");
 			},
 		},
 		my_fumeng: {
 			...conversion("my_fumeng"),
-			trigger: { global: ["dyingAfter", "useCard1", "damageBegin1"] },
+			trigger: { global: ["useCard1", "damageBegin1"] },
+			group: ["my_fumeng_dying", "my_fumeng_switch"],
 			forced: true,
 			priority: 20,
 			filter(e, p) {
-				if (e.name === "dying") return alive(e.player) && e.player.hp > 0;
 				return yin(p, "my_fumeng") ? e.name === "damage" && e.num > 0 : e.name === "useCard" && ordinary(e.card);
 			},
 			async content(event, trigger, player) {
-				if (trigger.name === "dying") change(player, "my_fumeng");
-				else if (trigger.name === "useCard") trigger.effectCount++;
+				if (trigger.name === "useCard") trigger.effectCount++;
 				else {
 					trigger.cancel();
 					await trigger.player.loseHp(trigger.num);
 				}
+			},
+		},
+		my_fumeng_dying: {
+			charlotte: true,
+			silent: true,
+			forced: true,
+			trigger: { global: "dying" },
+			async content(event, trigger) {
+				if (!enteredDying.has(trigger)) enteredDying.set(trigger, new WeakSet());
+			},
+		},
+		my_fumeng_switch: {
+			forced: true,
+			popup: false,
+			trigger: { global: "dyingAfter" },
+			sourceSkill: "my_fumeng",
+			filter(e, p) {
+				const switched = enteredDying.get(e);
+				return switched && !switched.has(p) && alive(e.player) && e.player.hp > 0;
+			},
+			async content(event, trigger, player) {
+				enteredDying.get(trigger).add(player);
+				change(player, "my_fumeng");
 			},
 		},
 		my_yifang: {
@@ -331,14 +367,16 @@ export function createJianSeriesPack({ lib, game, ui, get, _status }) {
 	};
 	return {
 		character: {
+			...dingFuren.character,
 			my_jian_guojia: { sex: "male", group: "wei", hp: 3, maxHp: 4, skills: ["my_fengjue", "my_weijing"], img: "image/character/guojia.jpg" },
 			my_jian_liuxie: { sex: "male", group: "wei", hp: 4, maxHp: 4, skills: ["my_fumeng", "my_yifang"], img: "image/character/liuxie.jpg" },
 			my_jian_xunyu: { sex: "male", group: "wei", hp: 3, maxHp: 3, skills: ["my_jingshi", "my_zhongzhi", "my_bingjie"], img: "image/character/xunyu.jpg" },
 			my_jian_kongrong: { sex: "male", group: "qun", hp: 4, maxHp: 4, skills: ["my_xiangran", "my_gaoyi"], img: "image/character/kongrong.jpg" },
 		},
-		characterTitle: { my_jian_guojia: "知孤者，嘉也", my_jian_liuxie: "汉祚余梦", my_jian_xunyu: "魏阙孤臣", my_jian_kongrong: "想当然耳" },
+		characterTitle: { ...dingFuren.characterTitle, my_jian_guojia: "知孤者，嘉也", my_jian_liuxie: "汉祚余梦", my_jian_xunyu: "魏阙孤臣", my_jian_kongrong: "想当然耳" },
 		skill,
 		translate: {
+			...dingFuren.translate,
 			my_jian_custom: "奸系列·自制",
 			my_jian_guojia: "奸郭嘉",
 			my_jian_liuxie: "奸刘协",
