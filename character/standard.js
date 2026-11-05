@@ -4639,7 +4639,7 @@ function createSecondBatch(runtime) {
         const r = await q(player.chooseControl("摸牌", "回复体力", "获得其他角色区域牌", "造成伤害").set("prompt", "奸绝：选择本轮跟随执行的一项"));
         player.storage.my_jianjue_option = r.index;
         player.storage.my_jianjue_round = game2.roundNumber;
-        delete player.storage.my_jianjue_echoed;
+        player.storage.my_jianjue_echoed = [];
       },
       group: ["my_jianjue_echo", "my_jianjue_success"]
     },
@@ -4648,16 +4648,19 @@ function createSecondBatch(runtime) {
       forced: true,
       popup: false,
       filter(e, p) {
-        if (p.storage.my_jianjue_done || p.storage.my_jianjue_echoed || p.storage.my_jianjue_round !== game2.roundNumber) return false;
+        if (p.storage.my_jianjue_done || p.storage.my_jianjue_round !== game2.roundNumber) return false;
         const i = p.storage.my_jianjue_option;
+        const actor = i === 3 ? e.source : e.player;
+        if (!actor || actor === p || p.storage.my_jianjue_echoed.includes(actor.playerid)) return false;
         if (i === 0) return e.name === "draw" && e.player !== p && e.num > 0;
         if (i === 1) return e.name === "recover" && e.player !== p && e.num > 0;
         if (i === 3) return e.name === "damage" && e.source && e.source !== p && e.num > 0;
         return i === 2 && e.name === "gain" && e.player !== p && game2.hasPlayer((t) => t !== e.player && e.getl?.(t)?.cards2?.some((c) => e.cards.includes(c)));
       },
       async content(event, trigger, player) {
-        player.storage.my_jianjue_echoed = true;
         const i = player.storage.my_jianjue_option;
+        const actor = i === 3 ? trigger.source : trigger.player;
+        player.storage.my_jianjue_echoed.push(actor.playerid);
         if (i === 0) await player.draw();
         else if (i === 1) await player.recover();
         else {
@@ -4735,7 +4738,7 @@ function createSecondBatch(runtime) {
       my_fuwo: "负我",
       my_fuwo_info: "锁定技，其他角色每次获得你的手牌后，该角色摸一张牌。杀死你的角色失去其所有技能（当时的装备技能永久失效），并获得本版奸雄。",
       my_jianjue: "奸绝",
-      my_jianjue_info: "使命技，每轮开始选择一项：摸牌、回复体力、获得其他角色区域牌、造成伤害。本轮其他角色首次执行该项后，你执行同项（摸1、回1、获得其他角色区域1张牌、对其他角色造成1伤害，目标由你选）。使命成功：以此法累计造成伤害不小于当前体力时，获得奸雄，使命结束。",
+      my_jianjue_info: "使命技，每轮开始选择一项：摸牌、回复体力、获得其他角色区域牌、造成伤害。本轮每名其他角色首次执行该项后，你执行同项（摸1、回1、获得其他角色区域1张牌、对其他角色造成1伤害，目标由你选）。使命成功：以此法累计造成伤害不小于当前体力时，获得奸雄，使命结束。",
       my_xieling: "挟令",
       my_xieling_info: "锁定技，记录其他角色本回合发动的技能。同一角色再次发动同一技能时，其选择令你按原规则合法发动一次，或永久失去此技能。不满足当前发动条件的技能不能选择复制。"
     }
@@ -4796,6 +4799,207 @@ function createTianJianSeriesPack(runtime) {
     }
   };
 }
+function createYoungJianPack({ lib: lib2, game: game2, get: get2 }) {
+  const phaseKey = "my_zhumou_turn";
+  const tag = "my_zhumou_protected";
+  const legal = (card, player, target) => lib2.filter.targetEnabledx(card, player, target) && lib2.filter.targetInRange(card, player, target);
+  const available = (player) => {
+    const used = new Set(player.getAllHistory("useCard").filter((event) => event.myYoungJianRound === game2.roundNumber).map((event) => event.card.name));
+    return lib2.inpile.filter((name) => {
+      const card = { name, isCard: true };
+      return get2.tag(card, "damage") && !used.has(name) && lib2.filter.cardEnabled(card, player);
+    });
+  };
+  return {
+    character: {
+      my_jian_youngcaocao: { sex: "male", group: "wei", hp: 4, maxHp: 4, skills: ["my_shifeng", "my_renqi"], img: "image/character/caocao.jpg" },
+      my_jian_xuyou: { sex: "male", group: "wei", hp: 3, maxHp: 6, skills: ["my_zhumou", "my_jianwei"], img: "image/character/xuyou.jpg" }
+    },
+    characterTitle: { my_jian_youngcaocao: "心向屠龙之途", my_jian_xuyou: "恃功犯威" },
+    skill: {
+      my_shifeng: {
+        enable: "phaseUse",
+        group: "my_shifeng_record",
+        filter(event, player) {
+          return player.countCards("h", "sha") > 0 && available(player).length > 0;
+        },
+        async content(event, trigger, player) {
+          const options = available(player);
+          const choice = await player.chooseButton(["试锋：选择伤害牌", [options.map((name) => [get2.type(name), "", name]), "vcard"]]).forResult();
+          if (!choice.bool) return;
+          const card = { name: choice.links[0][2], isCard: true };
+          const info = get2.info(card);
+          const count = get2.select(info.selectTarget ?? (info.notarget ? 0 : 1));
+          const capacity = player.countCards("h", "sha");
+          let targets;
+          if (count[0] === -1) {
+            targets = game2.filterPlayer((target) => legal(card, player, target));
+          } else {
+            const max = count[1] < 0 ? capacity : Math.min(count[1], capacity);
+            if (max < Math.max(1, count[0])) return;
+            const choice2 = await player.chooseTarget("试锋：选择目标", [Math.max(1, count[0]), max], (unused, owner, target) => legal(card, owner, target)).forResult();
+            if (!choice2.bool) return;
+            targets = choice2.targets;
+          }
+          if (!targets.length || targets.length > capacity) return;
+          const payment = await player.chooseCard("h", targets.length, "试锋：选择等同于目标数的【杀】", (card2) => get2.name(card2) === "sha").forResult();
+          if (!payment.bool) return;
+          const use = player.useCard(card, payment.cards, targets);
+          use.addCount = false;
+          await use;
+        },
+        subSkill: {
+          record: {
+            trigger: { player: "useCard1" },
+            forced: true,
+            popup: false,
+            firstDo: true,
+            async content(event, trigger) {
+              trigger.myYoungJianRound = game2.roundNumber;
+            }
+          }
+        }
+      },
+      my_renqi: {
+        trigger: { global: "useCardToTarget", player: "damageEnd" },
+        direct: true,
+        filter(event, player) {
+          if (event.card?.name !== "sha") return false;
+          if (event.name === "damage") return event.cards?.some((card) => get2.position(card, true) === "o" || get2.position(card, true) === "d");
+          return event.player !== player && event.target !== player && !event.targets.includes(player) && lib2.filter.targetEnabled(event.card, event.player, player) && event.player.countDiscardableCards(player, "he") > 0;
+        },
+        async content(event, trigger, player) {
+          if (trigger.name === "damage") {
+            if (!(await player.chooseBool("任气：获得对你造成伤害的【杀】？").forResult()).bool) return;
+            player.logSkill("my_renqi");
+            await player.gain(trigger.cards.filter((card) => ["o", "d"].includes(get2.position(card, true))), "gain2");
+            return;
+          }
+          const result = await player.discardPlayerCard(trigger.player, "he", "任气：弃置其一张牌，将此【杀】的目标改为你").forResult();
+          if (!result.bool) return;
+          player.logSkill("my_renqi", trigger.player);
+          const use = trigger.getParent();
+          use.triggeredTargets2.remove(trigger.target);
+          use.targets.remove(trigger.target);
+          use.targets.push(player);
+        }
+      },
+      my_zhumou: {
+        zhuanhuanji: true,
+        direct: true,
+        trigger: { global: "phaseBegin" },
+        filter(event, player) {
+          return event.player !== player && !player.storage.my_zhumou_changed && game2.hasPlayer((target) => target !== event.player);
+        },
+        async content(event, trigger, player) {
+          const result = await player.chooseTarget("注谋：为" + get2.translation(trigger.player) + "选择一名目标", (card, owner, target2) => target2 !== trigger.player).forResult();
+          if (!result.bool) return;
+          const target = result.targets[0];
+          player.logSkill("my_zhumou", target);
+          (player.storage.my_zhumou_targets ??= []).push(target.playerid);
+          player.storage[phaseKey] = { phase: trigger, target };
+        },
+        group: ["my_zhumou_effect"],
+        subSkill: {
+          effect: {
+            trigger: { global: "phaseUseBegin" },
+            forced: true,
+            popup: false,
+            filter(event, player) {
+              const plan = player.storage[phaseKey];
+              return event.player !== player && (player.storage.my_zhumou_changed || plan?.phase === event.getParent("phase") && plan.target.isIn());
+            },
+            async content(event, trigger, player) {
+              const actor = trigger.player;
+              const changed = player.storage.my_zhumou_changed;
+              const target = changed ? player : player.storage[phaseKey].target;
+              if (!changed) delete player.storage[phaseKey];
+              const yin = player.storage.my_zhumou;
+              if (!yin && !actor.isDamaged()) return;
+              if (!changed && !(await actor.chooseBool("注谋：是否执行" + (yin ? "阴" : "阳") + "效果？").forResult()).bool) return;
+              player.logSkill("my_zhumou", [actor, target]);
+              player.storage.my_zhumou_count = (player.storage.my_zhumou_count || 0) + 1;
+              player.changeZhuanhuanji("my_zhumou");
+              if (player.hasSkill("my_jianwei") && player.storage.my_zhumou_count < 3) await player.draw();
+              if (yin) {
+                const count = Math.ceil(actor.countCards("h") / 2);
+                if (count) {
+                  await actor.chooseToDiscard("h", count, true);
+                  if (target.countDiscardableCards(actor, "he")) await actor.discardPlayerCard(target, "he", Math.min(count, target.countDiscardableCards(actor, "he")), true);
+                }
+                (actor.storage.my_zhumou_free ??= []).push(target.playerid);
+                actor.addTempSkill("my_zhumou_free", "phaseAfter");
+              } else {
+                const count = actor.maxHp - actor.hp;
+                await actor.loseMaxHp(count);
+                const draw = actor.draw(count);
+                draw.gaintag = [tag];
+                actor.addTempSkill(tag, "phaseAfter");
+                await draw;
+                if (target.isIn()) await target.loseMaxHp(count);
+              }
+            }
+          },
+          free: {
+            onremove: true,
+            mod: {
+              targetInRange(card, player, target) {
+                if (player.storage.my_zhumou_free?.includes(target.playerid)) return true;
+              },
+              cardUsableTarget(card, player, target) {
+                if (player.storage.my_zhumou_free?.includes(target.playerid)) return true;
+              }
+            }
+          },
+          protected: {
+            onremove(player) {
+              player.removeGaintag(tag);
+            },
+            mod: {
+              ignoredHandcard(card) {
+                if (card.hasGaintag(tag)) return true;
+              },
+              cardDiscardable(card, player, reason) {
+                if (reason === "phaseDiscard" && card.hasGaintag(tag)) return false;
+              }
+            }
+          }
+        }
+      },
+      my_jianwei: {
+        trigger: { global: ["phaseZhunbeiBegin", "dieAfter"] },
+        forced: true,
+        filter(event, player) {
+          if (event.name === "die") return !player.storage.my_zhumou_changed && player.storage.my_zhumou_targets?.includes(event.player.playerid);
+          return !player.storage.my_zhumou_count;
+        },
+        async content(event, trigger, player) {
+          if (trigger.name === "die") {
+            player.storage.my_zhumou_changed = true;
+            player.markSkill("my_zhumou");
+            return;
+          }
+          if (!(await player.chooseBool("僭威：是否调整注谋的阴阳状态？").forResult()).bool) return;
+          player.changeZhuanhuanji("my_zhumou");
+          await player.draw();
+        }
+      }
+    },
+    translate: {
+      my_jian_youngcaocao: "奸少年曹操",
+      my_jian_xuyou: "奸许攸",
+      my_shifeng: "试锋",
+      my_shifeng_info: "出牌阶段，你可将X张【杀】当任意本轮你未使用过的伤害牌使用（X为此牌目标数，且不计入次数）。",
+      my_renqi: "任气",
+      my_renqi_info: "其他角色成为【杀】的目标后，你可弃置使用者一张牌，将该目标改为你。你可获得对你造成伤害的【杀】。",
+      my_zhumou: "注谋",
+      my_zhumou_info: "转换技。其他角色回合开始时，你可为其指定另一名角色。其出牌阶段开始时，可执行对应效果。阳：若其已受伤，将其体力上限调整至体力值，摸减少值张牌（本回合不计入手牌上限），令指定角色失去等量体力上限。阴：弃置半数手牌（向上取整），弃置指定角色等量牌（不足则全弃），本回合对指定角色用牌无距离和次数限制。",
+      my_zhumou_append: "修改后为锁定技。其他角色出牌阶段开始时须执行对应效果，原指定角色改为许攸。",
+      my_jianwei: "僭威",
+      my_jianwei_info: "锁定技。注谋发动前，任一角色准备阶段，你可调整其阴阳状态。注谋发动次数小于3时，状态改变后摸一张牌。任一曾被注谋指定为目标的角色死亡后，修改注谋。"
+    }
+  };
+}
 function configureDiyModes({ lib: lib2, _status: _status2, characters: characters2 }) {
   const names = Object.keys(characters2).filter((name) => !characters2[name].isUnseen);
   const filters = Object.fromEntries(names.map((name) => [name, (mode) => mode !== "connect" && !_status2.connectMode]));
@@ -4819,26 +5023,27 @@ const jinSimayi = createJinSimayiPack({ lib, game, ui, get, _status });
 const moZhangjiao = createMoZhangjiaoPack({ lib, game, ui, get, _status });
 const jianSeries = createJianSeriesPack({ lib, game, ui, get, _status });
 const tianJian = createTianJianSeriesPack({ lib, game, ui, get, _status });
-const diyFilters = configureDiyModes({ lib, _status, characters: { ...jinSimayi.character, ...moZhangjiao.character, ...jianSeries.character, ...tianJian.character } });
+const youngJian = createYoungJianPack({ lib, game, get });
+const diyFilters = configureDiyModes({ lib, _status, characters: { ...jinSimayi.character, ...moZhangjiao.character, ...jianSeries.character, ...tianJian.character, ...youngJian.character } });
 game.import("character", function() {
   return {
     name: "standard",
     connect: true,
-    character: { ...characters, ...jinSimayi.character, ...moZhangjiao.character, ...jianSeries.character, ...tianJian.character },
+    character: { ...characters, ...jinSimayi.character, ...moZhangjiao.character, ...jianSeries.character, ...tianJian.character, ...youngJian.character },
     characterSort: {
-      standard: { ...characterSort, my_jin_custom: ["my_jin_simayi"], my_mo_custom: ["my_mo_zhangjiao"], my_jian_custom: Object.keys(jianSeries.character), my_tian_custom: Object.keys(tianJian.character) }
+      standard: { ...characterSort, my_jin_custom: ["my_jin_simayi"], my_mo_custom: ["my_mo_zhangjiao"], my_jian_custom: [...Object.keys(jianSeries.character), ...Object.keys(youngJian.character)], my_tian_custom: Object.keys(tianJian.character) }
     },
     characterFilter: {
       ...characterFilters,
       ...diyFilters
     },
-    characterTitle: { ...characterTitles, ...jianSeries.characterTitle, ...tianJian.characterTitle },
+    characterTitle: { ...characterTitles, ...jianSeries.characterTitle, ...tianJian.characterTitle, ...youngJian.characterTitle },
     dynamicTranslate: { ...dynamicTranslates },
     characterIntro: { ...characterIntro },
     card: { ...cards },
-    skill: { ...skills, ...jinSimayi.skill, ...moZhangjiao.skill, ...jianSeries.skill, ...tianJian.skill },
+    skill: { ...skills, ...jinSimayi.skill, ...moZhangjiao.skill, ...jianSeries.skill, ...tianJian.skill, ...youngJian.skill },
     perfectPair: { ...perfectPairs },
-    translate: { ...translates, ...voices, ...characterSortTranslate, ...jinSimayi.translate, ...moZhangjiao.translate, ...jianSeries.translate, ...tianJian.translate },
+    translate: { ...translates, ...voices, ...characterSortTranslate, ...jinSimayi.translate, ...moZhangjiao.translate, ...jianSeries.translate, ...tianJian.translate, ...youngJian.translate },
     pinyins: { ...pinyins }
   };
 });
